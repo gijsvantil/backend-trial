@@ -1,5 +1,3 @@
--- Structure
-
 CREATE TABLE venues (
 	id integer PRIMARY KEY AUTOINCREMENT,
 	name VARCHAR(255) NOT NULL
