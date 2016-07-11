@@ -1,102 +1,98 @@
 const express = require('express');
 const Sequelize = require('sequelize');
+const Promise = require('promise');
+const moment = require('moment');
+const db = require('./db/database')
 
 const app = express();
 
 app.use(express.static('public'));
 
-const sequelize = new Sequelize ('awesome', 'root', "", {
-	host: 'localhost',
-	dialect: 'sqlite',
-	storage: './resources/awesome.sql',
-	define: {
-		timestamps: false
-	}
-})
-
-const venue = sequelize.define('venue', {
-	timestamps: false,
-	name:{type: Sequelize.STRING, allowNull: false}
-})
-const item = sequelize.define('item', {
-	timestamps: false,
-	venue_id: {type: Sequelize.INTEGER, allowNull: false},
-	name:{type: Sequelize.STRING, allowNull: false}
-})
-const space = sequelize.define('space', {
-	timestamps: false,
-	item_id: {type: Sequelize.INTEGER, allowNull: false},
-	hour_price: {type: Sequelize.REAL, allowNull: false},
-})
-const product= sequelize.define('product', {
-	timestamps: false,
-	item_id: {type: Sequelize.INTEGER, allowNull: false},
-	price: {type: Sequelize.REAL, allowNull: false}
-})
-const user = sequelize.define('user', {
-	timestamps: false,
-	first_name: {type: Sequelize.STRING, allowNull: false},
-	last_name: {type: Sequelize.STRING, allowNull: false},
-	registered: {type: Sequelize.INTEGER, allowNull: false, defaultValue: 0},
-	email: {type: Sequelize.STRING, allowNull: false},
-});
-const booker = sequelize.define('booker', {
-	timestamps: false,
-	user_id: {type: Sequelize.INTEGER, allowNull: false},
-	created: {type: Sequelize.INTEGER, allowNull: false, defaultValue: 0},
-});
-
-const booking = sequelize.define('booking', {
-	timestamps: false,
-	booker_id: {type: Sequelize.INTEGER, allowNull: false,},
-	created: {type: Sequelize.INTEGER, allowNull: false, defaultValue: 0},
-});
-
-const bookingitem = sequelize.define('bookingitem', {
-	timestamps: false,
-	booking_id: {type: Sequelize.INTEGER, allowNull: false,},
-	item_id: {type: Sequelize.INTEGER, allowNull: false,},
-	quantity: {type: Sequelize.INTEGER, allowNull: false,},
-	locked_piece_price: {type: Sequelize.REAL, allowNull: false},
-	locked_total_price: {type: Sequelize.REAL, allowNull: false},
-	start_timestamp: {type: Sequelize.INTEGER, allowNull: true},
-	end_timestamp: {type: Sequelize.INTEGER, allowNull: true}
-});
-
-// venue.hasMany(item, {foreignKey: 'venue_id'})
-item.belongsTo(venue, {foreignKey: 'venue_id'})
-
-// item.hasMany(space, {foreignKey: 'item_id'})
-space.belongsTo(item, {foreignKey: 'item_id'})
-
-// item.hasMany(product, {foreignKey: 'item_id'})
-product.belongsTo(item, {foreignKey: 'item_id'})
-
-// user.hasMany(booker, {foreignKey:'user_id'})
-booker.belongsTo(user, {foreignKey: 'user_id'})
-
-// booker.hasMany(booking, {foreignKey:'booker_id'})
-booking.belongsTo(booker, {foreignKey:'booker_id'} )
-
-// booking.hasMany(bookingitem, {foreignKey:'booking_id'})
-bookingitem.belongsTo(booking, {foreignKey:'bookingitem_id'})
-// item.hasMany(bookingitem, {foreignKey:'item_id'})
-bookingitem.belongsTo(item, {foreignKey:'item_id'})
+app.set('views', './views');
+app.set('view engine', 'pug');
 
 
+// function to select begin and endstamp from month
+function getMonthDateRange(year, month) {
+	var moment = require('moment');
+// month in moment is 0 based, so 9 is actually october, subtract 1 to compensate
+// array is 'year', 'month', 'day', etc
+var startDate = moment([year, month]).add(-1,"month");
+var endDate = moment(startDate).endOf('month');
+return { start: Math.floor(startDate / 1e3), end: Math.floor(endDate / 1e3) };
+}
+getMonthDateRange(2013,09)
+
+
+let commission = 0.1
+
+// // GET that listens on '/' and renders the report landing page
+// app.get('/', (req, res)=>{
+// 	res.render('index')
+// })
+
+// MONTHLY REPORTS
 app.get('/', (req, res) => {
-	user.findAll({
+
+let report = {
+	month: "",
+	bookings: 0,
+	bookers: 0,
+	revenue: 0,
+	profit: 0,
+	averageRevenue: 0,
+	averageProfit: 0
+}
+	// find all bookings in a specific month
+	db.booking.findAll({ 
 		where: {
-			first_name: "First6"
+			created: {
+				$between: [1375308000, 1377986399]
+			}
 		}
-	}).then((result)=>{
-		console.log(result)
-		res.send(result)
-	})
+	}).then((thebookings)=>{
+		var bookings=[]
+			// store all bookings in array
+			for (var i = 0; i < thebookings.length; i++) {
+				bookings.push(thebookings[i].id)
+			}
+			report.bookings = bookings.length
+			var bookers = []
+			// store all bookers in array.
+			for (var i = 0; i < thebookings.length; i++) {
+				if (bookers.indexOf(thebookings[i].booker_id) == -1){
+					bookers.push(thebookings[i].booker_id) 
+				}
+			}
+			report.bookers = bookers.length
+			// find all bookingitems that match with booking IDs from array.
+			db.bookingitem.findAll({
+				where: {
+					booking_id: bookings
+				}
+			}).then((bookingitems)=>{
+				revenue = 0
+				for (var i = 0; i < bookingitems.length; i++) {
+					revenue += bookingitems[i].locked_total_price
+				}
+			// add revenue to report object
+			report.revenue="€ " + Number((revenue).toFixed(2))
+			// add average revenue per booking to object
+			report.averageRevenue="€ " + Number((revenue / report.bookings).toFixed(2))
+			// profit calculation
+			profit = (revenue * commission)
+			// add profit to report object
+			report.profit = "€ " + Number((profit).toFixed(2))
+			// add average profit per booking to object
+			report.averageProfit="€ " + Number( profit / report.bookings).toFixed(2)
+			console.log(report)
+			res.render('index',{
+				report: report
+			})
+		})
+		})
 });
 
-sequelize.sync({force: false}).then(function () {
-	var server = app.listen(3000, function (){
-		console.log ('LTV report listening on: ' + server.address().port)
-	});
+var server = app.listen(3000, function (){
+	console.log ('listening on: ' + server.address().port)
 });
