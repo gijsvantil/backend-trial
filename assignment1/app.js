@@ -8,8 +8,7 @@ const db = require('./db/database')
 
 const app = express();
 
-// Static folder and bodyparser
-app.use(express.static('public'));
+// Bodyparser
 app.use(bodyParser.urlencoded({ extended: false }))
 
 // Setting PUG as view engine
@@ -23,13 +22,14 @@ let startDate = moment([year, month]).add("month");
 let endDate = moment(startDate).endOf('month');
 return { start: Math.floor(startDate / 1e3), end: Math.floor(endDate / 1e3) };
 }
+
 // function to convert month string to month number
 function monthToNumber(month) {
-		return new Date(Date.parse("1 "+ month)).getMonth();
-	}
+	return new Date(Date.parse("1 "+ month)).getMonth();
+}
 
+app.get('/', (req, res) => {
 // GET that listens on '/' and renders the report landing page
-app.get('/', (req, res)=>{
 	res.render('index')
 })
 
@@ -102,6 +102,7 @@ app.post('/report', (req, res) => {
 		})
 		})
 });
+
 
 var server = app.listen(3000, function (){
 	console.log ('listening on: ' + server.address().port)

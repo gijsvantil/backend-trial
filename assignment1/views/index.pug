@@ -4,8 +4,8 @@ html
       table, th, td {
         border: 1px solid black;
       }
-
   body
+
     form(class='form-signin', action='/report', method='POST')
       select(name="year")
         option(value='2013') 2013
@@ -45,3 +45,4 @@ html
           each date in report 
               td=date
   else
+    
