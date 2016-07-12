@@ -2,52 +2,62 @@ const express = require('express');
 const Sequelize = require('sequelize');
 const Promise = require('promise');
 const moment = require('moment');
+const bodyParser = require('body-parser')
+// requiring database model
 const db = require('./db/database')
 
 const app = express();
 
+// Static folder and bodyparser
 app.use(express.static('public'));
+app.use(bodyParser.urlencoded({ extended: false }))
 
+// Setting PUG as view engine
 app.set('views', './views');
 app.set('view engine', 'pug');
 
-
 // function to select begin and endstamp from month
 function getMonthDateRange(year, month) {
-	var moment = require('moment');
-// month in moment is 0 based, so 9 is actually october, subtract 1 to compensate
 // array is 'year', 'month', 'day', etc
-var startDate = moment([year, month]).add(-1,"month");
-var endDate = moment(startDate).endOf('month');
+let startDate = moment([year, month]).add("month");
+let endDate = moment(startDate).endOf('month');
 return { start: Math.floor(startDate / 1e3), end: Math.floor(endDate / 1e3) };
 }
-getMonthDateRange(2013,09)
+// function to convert month string to month number
+function monthToNumber(month) {
+		return new Date(Date.parse("1 "+ month)).getMonth();
+	}
 
-
-let commission = 0.1
-
-// // GET that listens on '/' and renders the report landing page
-// app.get('/', (req, res)=>{
-// 	res.render('index')
-// })
+// GET that listens on '/' and renders the report landing page
+app.get('/', (req, res)=>{
+	res.render('index')
+})
 
 // MONTHLY REPORTS
-app.get('/', (req, res) => {
-
-let report = {
-	month: "",
-	bookings: 0,
-	bookers: 0,
-	revenue: 0,
-	profit: 0,
-	averageRevenue: 0,
-	averageProfit: 0
-}
+app.post('/report', (req, res) => {
+	let report = {
+		month: req.body.month + " " + req.body.year,
+		bookings: 0,
+		bookers: 0,
+		revenue: 0,
+		commission: "",
+		profit: 0,
+		averageRevenue: 0,
+		averageProfit: 0
+	}
+	// process commission input and add to report
+	let commission = (req.body.commission/100)
+	report.commission =(commission * 100) + " %"
+	// process date input
+	let month=monthToNumber(req.body.month)
+	let year=(req.body.year)
+	let daterange = getMonthDateRange(year, month)
+	
 	// find all bookings in a specific month
 	db.booking.findAll({ 
 		where: {
 			created: {
-				$between: [1375308000, 1377986399]
+				$between: [daterange.start, daterange.end]
 			}
 		}
 	}).then((thebookings)=>{

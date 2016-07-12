@@ -6,12 +6,12 @@ html
       }
 
   body
-    form(class='form-signin', action='/signup', method='POST')
-      select
+    form(class='form-signin', action='/report', method='POST')
+      select(name="year")
         option(value='2013') 2013
         option(value='2014') 2014
         option(value='2015') 2015
-      select
+      select(name="month")
         option(value='January') January
         option(value='February') February
         option(value='March') March
@@ -24,17 +24,24 @@ html
         option(value='October') October
         option(value='November') November
         option(value='December') December
+      p Commission: 
+        input(placeholder="%", name="commission")
       button(type='submit') Submit!
-    
-    table
-      tr
-        th Month
-        th Bookings
-        th Bookers
-        th Revenue
-        th Profit
-        th AVG Revenue per booking
-        th AVG Profit per bookings
-      tr
-        each date in report 
-          td=date
+  if report 
+    if report.bookings == 0
+      h1 No report available for this month
+    else   
+      table
+        tr
+          th Month
+          th Bookings
+          th Bookers
+          th Revenue
+          th Commission
+          th Profit
+          th AVG revenue per booking
+          th AVG profit per booking
+        tr
+          each date in report 
+              td=date
+  else
